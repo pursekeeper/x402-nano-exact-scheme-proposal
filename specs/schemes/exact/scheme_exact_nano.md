@@ -370,7 +370,7 @@ Used by: **`Facilitator`**
 
 ## Test Vectors
 
-Generated on 2026-10-01 against a live facilitator (`facilitator.pursekeeper.dev`, Node implementation) and the Nano main network. Every hash below can be checked on any Nano node or block explorer. V1 and V13 are real settled payments; V2 to V12 are `/verify` requests that broadcast nothing. V1 to V12 were generated on 2026-10-01, V13 on 2026-10-14 against the same facilitator after it took up the amount clause of check 10 (Previous Confirmation Check), V14 on 2026-10-27, and V15 on 2026-10-28 (two real 1-raw sends, the second refused while the first was awaiting confirmation and settled unchanged once it was). The payer is an ordinary account funded for this purpose; `payTo` is a seller account. The capture of every request and response as sent and received is at [pursekeeper/api, examples/research/x402-vectors-2026-10-01.json](https://github.com/pursekeeper/api/blob/main/examples/research/x402-vectors-2026-10-01.json) and, for V13, [examples/research/x402-vector-v13-2026-10-14.json](https://github.com/pursekeeper/api/blob/main/examples/research/x402-vector-v13-2026-10-14.json); for V15, [examples/research/x402-vector-v15-2026-10-28.json](https://github.com/pursekeeper/api/blob/main/examples/research/x402-vector-v15-2026-10-28.json).
+Generated on 2026-10-01 against a live facilitator (`facilitator.pursekeeper.dev`, Node implementation) and the Nano main network. Every hash below can be checked on any Nano node or block explorer. V1 and V13 are real settled payments; V2 to V12 are `/verify` requests that broadcast nothing. V1 to V12 were generated on 2026-10-01, V13 on 2026-10-14 against the same facilitator after it took up the amount clause of check 10 (Previous Confirmation Check), V14 on 2026-10-27, V15 on 2026-10-28 (two real 1-raw sends, the second refused while the first was awaiting confirmation and settled unchanged once it was), and V16 on 2026-11-10 (`/verify` only, the V9 block with `accepted.amount` changed). The payer is an ordinary account funded for this purpose; `payTo` is a seller account. The capture of every request and response as sent and received is at [pursekeeper/api, examples/research/x402-vectors-2026-10-01.json](https://github.com/pursekeeper/api/blob/main/examples/research/x402-vectors-2026-10-01.json) and, for V13, [examples/research/x402-vector-v13-2026-10-14.json](https://github.com/pursekeeper/api/blob/main/examples/research/x402-vector-v13-2026-10-14.json); for V15, [examples/research/x402-vector-v15-2026-10-28.json](https://github.com/pursekeeper/api/blob/main/examples/research/x402-vector-v15-2026-10-28.json); for V16, [examples/research/x402-vector-v16-2026-11-10.json](https://github.com/pursekeeper/api/blob/main/examples/research/x402-vector-v16-2026-11-10.json).
 
 The `invalidReason` and `errorReason` values are the ones this facilitator returned when the vectors were cut, before this document's Error Vocabulary existed; the vocabulary code each corresponds to is given beside it. Check numbers follow the Verification section of this document.
 
@@ -1060,6 +1060,106 @@ Generated on 2026-10-28. Two 1-raw sends from the payer to `payTo`, both signed 
 </details>
 
 In the Error Vocabulary the refusal is `error_frontier_not_confirmed`; this facilitator's `frontier_unconfirmed` predates the vocabulary. The Balance Check (13) did not run during the window: check 12 refused first, so `confirmed_balance` was never compared with B's `balance`. The `/verify` answers above are shown with the `detail` and `invalidMessage` fields omitted; the capture file has them.
+
+### V16: `accepted.amount` differs from `PaymentRequirements.amount` (check 6)
+
+Generated on 2026-11-10, `/verify` only; nothing was signed or broadcast for it. The block is the V9 and V10 block, unchanged (hash `F140BA7BDE81859A8E8B42753A40555458CC6173D8A6B8D77FB0C7C0CDD3E194`): correctly signed, sending `1000000000000000000000000000` raw to `payTo`, built on the payer's frontier after V1. Only `accepted.amount` in the `PaymentPayload` is changed; `PaymentRequirements.amount` stays `1000000000000000000000000000`. The Amount Check compares the two fields and refuses before the block is examined. The control row presents the same block with the two amounts equal: checks 6 to 11 then pass and the refusal comes from check 12, because the payer's account has long since moved on. A facilitator that answers the first two rows with `error_previous_not_frontier` is running check 12 ahead of check 6.
+
+| Vector | `accepted.amount` | Verification check that fails | `invalidReason` | Error Vocabulary |
+|---|---|---|---|---|
+| V16 | `1000000000000000000000000001` (1 raw more than `PaymentRequirements.amount`) | 6 (Amount Check) | `requirements_mismatch` | `error_amount_mismatch` |
+| V16b | `999999999999999999999999999` (1 raw less) | 6 (Amount Check) | `requirements_mismatch` | `error_amount_mismatch` |
+| control | `1000000000000000000000000000` (equal) | 12 (Frontier Hash Check) | `frontier_moved` | `error_previous_not_frontier` |
+
+`requirements_mismatch` is this facilitator's one code for any difference between `accepted` and `PaymentRequirements` (V9 returns it too); in the Error Vocabulary the amount case is `error_amount_mismatch`.
+
+<details>
+<summary>Requests and responses for V16</summary>
+
+`/verify` request for V16 (V16b and the control differ only in `paymentPayload.accepted.amount`):
+
+```json
+{
+  "x402Version": 2,
+  "paymentPayload": {
+    "x402Version": 2,
+    "resource": {
+      "url": "https://pursekeeper.dev/v1/echo?msg=vector",
+      "description": "returns what you sent (test your payment client)",
+      "mimeType": "application/json"
+    },
+    "accepted": {
+      "scheme": "exact",
+      "network": "nano:mainnet",
+      "asset": "XNO",
+      "amount": "1000000000000000000000000001",
+      "payTo": "nano_1xug1q5t7nxoj3ywwzokiea9jz8fq8qfgzp8pbyfr3co3e5xgj755uofu8ue",
+      "maxTimeoutSeconds": 60
+    },
+    "payload": {
+      "block": {
+        "type": "state",
+        "account": "nano_1i3y944esngqw6wb6ia68dotj4yuqctch9kx8ct65twt8ewi4rdcfgax7ggf",
+        "previous": "1D60903EFD920FA78746E18F08C021EE7B8155205709DF5A4125BBDCF96D0BEB",
+        "representative": "nano_3arg3asgtigae3xckabaaewkx3bzsh7nwz7jkmjos79ihyaxwphhm6qgjps4",
+        "balance": "8787318189447476890320950701",
+        "link": "776E05C7A2D3B5887DCE7EB2831078FCCDB9AED77EC6B27CDC05550B07D744A3",
+        "link_as_account": "nano_1xug1q5t7nxoj3ywwzokiea9jz8fq8qfgzp8pbyfr3co3e5xgj755uofu8ue",
+        "signature": "37B0AFA22ACE7F4B7BFBEB49C3DAF84FF6EB32766DD9791027D948E0C422AF98358B923608EA11360C2C8548FCBE94E5D58F6CAF94186E6C39FF36A24B513A0F",
+        "work": "feec391ed40f8b85"
+      }
+    }
+  },
+  "paymentRequirements": {
+    "scheme": "exact",
+    "network": "nano:mainnet",
+    "asset": "XNO",
+    "amount": "1000000000000000000000000000",
+    "payTo": "nano_1xug1q5t7nxoj3ywwzokiea9jz8fq8qfgzp8pbyfr3co3e5xgj755uofu8ue",
+    "maxTimeoutSeconds": 60
+  }
+}
+```
+
+Response to V16 (HTTP 200):
+
+```json
+{
+  "isValid": false,
+  "invalidReason": "requirements_mismatch",
+  "detail": "amount must be 1000000000000000000000000000 raw",
+  "payer": "",
+  "invalidMessage": "amount must be 1000000000000000000000000000 raw"
+}
+```
+
+Response to V16b (HTTP 200):
+
+```json
+{
+  "isValid": false,
+  "invalidReason": "requirements_mismatch",
+  "detail": "amount must be 1000000000000000000000000000 raw",
+  "payer": "",
+  "invalidMessage": "amount must be 1000000000000000000000000000 raw"
+}
+```
+
+Response to the control (HTTP 200):
+
+```json
+{
+  "isValid": false,
+  "invalidReason": "frontier_moved",
+  "detail": "block.previous is not the account frontier (2D77DF51C415E09A6743F9721EF6DFCB356A4C3A33D64F6FC852CDEF266AE116)",
+  "payer": "nano_1i3y944esngqw6wb6ia68dotj4yuqctch9kx8ct65twt8ewi4rdcfgax7ggf",
+  "invalidMessage": "block.previous is not the account frontier (2D77DF51C415E09A6743F9721EF6DFCB356A4C3A33D64F6FC852CDEF266AE116)"
+}
+```
+
+[block_info] for the block's hash at the time of the run: `Block not found`.
+
+</details>
 
 ## Appendix
 
